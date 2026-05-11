@@ -53,26 +53,30 @@ A sovereign local operating system / unified command center for AI agents. Herme
 - **Remove RTX2**: GPU panel now shows only RTX 4070 Super #1 and RTX 3050
 - All tests passing across 3 iterations (10/10 phase3 + all previous suites)
 
+### Phase 4 Features (2026-05-11)
+- **Server.py Split**: Refactored from ~880 lines into shared.py + 9 router files (agents, dispatches, voice, forge, chains, plugins, mempalace, system, queue) + ~80-line server.py
+- **Object Storage**: Forge image generation now uploads to Emergent Object Storage, served via `/api/files/{path}` proxy endpoint. Base64 fallback retained for resilience
+- **Chain Template Gallery**: 5 seeded templates (Research & Summarize, Creative Brief Pipeline, Code Review Chain, Brand Voice Generator, Data → Insight → Action) with category badges, agent flow preview, and "Use" clone buttons
+- All tests passing across 4 iterations
+
 ## Prioritized Backlog
 ### P0 (Next)
-- Object storage for generated images (currently stored as base64 in MongoDB)
-- Split server.py into routers (approaching 900 lines)
+- Async job pattern for image generation (avoid ingress timeouts)
+- Migrate legacy base64 forge items to object storage
 
 ### P1
-- Voice selection UI for TTS (8 voices available)
-- Chain visual flow editor (drag & drop)
 - Plugin marketplace / sharing
 - Real GPU monitoring (when local)
+- Migrate @app.on_event to lifespan
 
 ### P2
 - Cloud backup sync
 - 3D avatar via react-three-fiber
-- Atlas (3D printer fleet) integration
 - Local model support (Ollama/Mistral)
 - Export/import MemPalace data
 
 ## Next Tasks
-1. Object storage for Forge images
-2. Server.py router splitting
-3. Chain template gallery
-4. Plugin marketplace
+1. Async image generation with job polling
+2. Legacy base64 migration script
+3. Plugin marketplace
+4. Template prompt preview on hover
