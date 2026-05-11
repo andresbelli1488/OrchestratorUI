@@ -142,9 +142,6 @@ function App() {
             </button>
             <div className="flex items-center gap-2">
               <Activity size={12} style={{ color: offlineMode ? "var(--nexus-yellow)" : "var(--nexus-green)" }} />
-              <span className="font-mono text-[10px] uppercase tracking-wider" style={{ color: "var(--nexus-text-secondary)" }}>
-                {offlineMode ? "offline" : (systemInfo?.network || "online")}
-              </span>
             </div>
             <div className="flex items-center gap-2">
               <div className="status-dot status-idle" />

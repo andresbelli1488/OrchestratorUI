@@ -45,16 +45,24 @@ A sovereign local operating system / unified command center for AI agents. Herme
 - **Plugin System**: Server-side Python execution, 5 built-in plugins (Word Counter, JSON Formatter, CSV to Table, Base64, Text Statistics), custom plugin creation
 - 100% backend + frontend tests passing across 2 iterations
 
+### Phase 3 Features (2026-05-11)
+- **Voice Selector Dropdown**: 8 ElevenLabs voices (George, Rachel, Antoni, Bella, Elli, Josh, Adam, Sam) with dropdown selector on TTS button
+- **Image Generation for Forge**: Dual-provider support — OpenAI GPT Image 1 + Gemini Nano Banana, auto-adds generated images to Forge gallery with tags
+- **Offline Mode Queue**: Toggle offline mode in header, dispatches queue locally, "Flush Queue" button executes all queued items when back online
+- **Chain Drag-and-Drop Editor**: Steps have grip handles for drag reordering, flow preview (INPUT → Agent1 → Agent2 → OUTPUT), agent auto-selected
+- **Remove RTX2**: GPU panel now shows only RTX 4070 Super #1 and RTX 3050
+- All tests passing across 3 iterations (10/10 phase3 + all previous suites)
+
 ## Prioritized Backlog
 ### P0 (Next)
-- Actual GPU monitoring (when running locally)
-- Image generation in Forge via DALL-E/Stable Diffusion
+- Object storage for generated images (currently stored as base64 in MongoDB)
+- Split server.py into routers (approaching 900 lines)
 
 ### P1
-- Offline mode with queued dispatches
 - Voice selection UI for TTS (8 voices available)
 - Chain visual flow editor (drag & drop)
 - Plugin marketplace / sharing
+- Real GPU monitoring (when local)
 
 ### P2
 - Cloud backup sync
@@ -64,7 +72,7 @@ A sovereign local operating system / unified command center for AI agents. Herme
 - Export/import MemPalace data
 
 ## Next Tasks
-1. Image generation integration for Forge
-2. Voice selector dropdown for TTS
-3. Chain visual drag-and-drop editor
-4. Offline mode queue
+1. Object storage for Forge images
+2. Server.py router splitting
+3. Chain template gallery
+4. Plugin marketplace
