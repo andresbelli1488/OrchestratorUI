@@ -28,7 +28,7 @@ A sovereign local operating system / unified command center for AI agents. Herme
 - AI dispatch via GPT-5.2 with real responses
 - Default agents (Hermes, OpenClaw) seeded on startup
 - Dark hacker terminal UI with JetBrains Mono + IBM Plex Sans fonts
-- All 6 navigation tabs: Command, MemPalace, Forge, Services, Ops Log, Models
+- All 8 navigation tabs: Command, MemPalace, Forge, Chains, Plugins, Services, Ops Log, Models
 - Animated agent avatars with state-reactive visuals
 - Terminal-style dispatch console with `agent@nexus:~$` prompt
 - GPU/RAM/network monitoring panel (simulated)
@@ -37,21 +37,26 @@ A sovereign local operating system / unified command center for AI agents. Herme
 - Service registry with agent registration form
 - Operations log with auto-refresh and color-coded severity
 - Model switcher with per-agent model assignment
-- 100% backend tests passing (15/15), 100% frontend flows verified
+
+### Phase 2 Features (2026-05-11)
+- **Streaming SSE Dispatch**: Real-time token-by-token response streaming via Server-Sent Events
+- **Voice-to-Voice**: Whisper STT for voice input (mic button), ElevenLabs TTS for voice output (speaker button)
+- **Dispatch Chains**: Multi-agent workflow builder (create chains, wire Hermes→OpenClaw→Forge, execute with input)
+- **Plugin System**: Server-side Python execution, 5 built-in plugins (Word Counter, JSON Formatter, CSV to Table, Base64, Text Statistics), custom plugin creation
+- 100% backend + frontend tests passing across 2 iterations
 
 ## Prioritized Backlog
 ### P0 (Next)
-- Dispatch chain support ("Ask Hermes → pass to OpenClaw → dump to Forge")
-- Streaming responses for long dispatches
-
-### P1
-- Voice-to-text for MemPalace notes (Whisper integration)
 - Actual GPU monitoring (when running locally)
-- Plugin system for custom Python scripts as services
 - Image generation in Forge via DALL-E/Stable Diffusion
 
-### P2
+### P1
 - Offline mode with queued dispatches
+- Voice selection UI for TTS (8 voices available)
+- Chain visual flow editor (drag & drop)
+- Plugin marketplace / sharing
+
+### P2
 - Cloud backup sync
 - 3D avatar via react-three-fiber
 - Atlas (3D printer fleet) integration
@@ -59,7 +64,7 @@ A sovereign local operating system / unified command center for AI agents. Herme
 - Export/import MemPalace data
 
 ## Next Tasks
-1. Implement dispatch chains (multi-agent workflows)
-2. Add streaming responses
-3. Voice-to-text integration for notes
-4. Plugin system for custom tools
+1. Image generation integration for Forge
+2. Voice selector dropdown for TTS
+3. Chain visual drag-and-drop editor
+4. Offline mode queue

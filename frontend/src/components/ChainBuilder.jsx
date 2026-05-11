@@ -11,7 +11,13 @@ export default function ChainBuilder({ agents, onDispatchComplete }) {
   const [showCreate, setShowCreate] = useState(false);
   const [chainName, setChainName] = useState("");
   const [chainDesc, setChainDesc] = useState("");
-  const [steps, setSteps] = useState([{ agent_id: "", prompt_template: "" }]);
+  const [steps, setSteps] = useState([]);
+
+  useEffect(() => {
+    if (agents.length > 0 && steps.length === 0) {
+      setSteps([{ agent_id: agents[0].id, prompt_template: "" }]);
+    }
+  }, [agents, steps.length]);
   const [executing, setExecuting] = useState(null);
   const [executionResult, setExecutionResult] = useState(null);
   const [chainInput, setChainInput] = useState("");
@@ -26,7 +32,7 @@ export default function ChainBuilder({ agents, onDispatchComplete }) {
 
   useEffect(() => { fetchChains(); }, []);
 
-  const addStep = () => setSteps([...steps, { agent_id: "", prompt_template: "" }]);
+  const addStep = () => setSteps([...steps, { agent_id: agents.length > 0 ? agents[0].id : "", prompt_template: "" }]);
   const removeStep = (i) => setSteps(steps.filter((_, idx) => idx !== i));
   const updateStep = (i, field, value) => {
     const updated = [...steps];

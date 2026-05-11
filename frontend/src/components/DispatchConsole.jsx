@@ -76,10 +76,7 @@ export default function DispatchConsole({ agent, onComplete }) {
       toast.error("Dispatch failed: " + err.message);
     } finally {
       setLoading(false);
-      setTimeout(() => {
-        setIsStreaming(false);
-        setStreamingText("");
-      }, 500);
+      setIsStreaming(false);
     }
   };
 
@@ -223,18 +220,28 @@ export default function DispatchConsole({ agent, onComplete }) {
         </div>
 
         {/* Streaming output */}
-        {(isStreaming || loading) && (
+        {(isStreaming || streamingText) && (
           <div className="mt-3 animate-fadeIn">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="status-dot status-busy" />
-              <span className="font-mono text-[10px]" style={{ color: "var(--nexus-yellow)" }}>
-                {streamingText ? "Streaming transmission..." : "Processing dispatch... awaiting transmission"}
-              </span>
-            </div>
+            {isStreaming && (
+              <div className="flex items-center gap-2 mb-2">
+                <div className="status-dot status-busy" />
+                <span className="font-mono text-[10px]" style={{ color: "var(--nexus-yellow)" }}>
+                  {streamingText ? "Streaming transmission..." : "Processing dispatch... awaiting transmission"}
+                </span>
+              </div>
+            )}
+            {!isStreaming && streamingText && (
+              <div className="flex items-center gap-2 mb-2">
+                <div className="status-dot status-idle" />
+                <span className="font-mono text-[10px]" style={{ color: "var(--nexus-green)" }}>
+                  Transmission complete
+                </span>
+              </div>
+            )}
             {streamingText && (
-              <div className="p-3 border-l-2 font-mono text-xs whitespace-pre-wrap max-h-60 overflow-y-auto" style={{ borderColor: "var(--nexus-green)", color: "var(--nexus-text)", background: "rgba(0,255,65,0.02)" }} data-testid="streaming-output">
+              <div className="p-3 border-l-2 font-mono text-xs whitespace-pre-wrap max-h-60 overflow-y-auto" style={{ borderColor: isStreaming ? "var(--nexus-yellow)" : "var(--nexus-green)", color: "var(--nexus-text)", background: "rgba(0,255,65,0.02)" }} data-testid="streaming-output">
                 {streamingText}
-                <span className="animate-blink" style={{ color: "var(--nexus-green)" }}>_</span>
+                {isStreaming && <span className="animate-blink" style={{ color: "var(--nexus-green)" }}>_</span>}
               </div>
             )}
           </div>

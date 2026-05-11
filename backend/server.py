@@ -503,8 +503,9 @@ async def execute_plugin(plugin_id: str, body: PluginExecute):
 
     try:
         with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False, dir='/tmp') as f:
-            # Inject input as variable
-            wrapper = f'INPUT = """{body.input_data}"""\n\n{plugin["script"]}'
+            # Inject input as variable safely
+            safe_input = json.dumps(body.input_data)
+            wrapper = f'import json as _json\nINPUT = _json.loads({safe_input!r})\n\n{plugin["script"]}'
             f.write(wrapper)
             f.flush()
             script_path = f.name
