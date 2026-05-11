@@ -1,0 +1,78 @@
+{
+  "theme": "Dark",
+  "archetype": "7 (Electric & Neon) - Custom Variant: Terminal Command Center",
+  "typography": {
+    "heading_font": "JetBrains Mono",
+    "body_font": "IBM Plex Sans",
+    "hierarchy": {
+      "h1": "text-4xl sm:text-5xl font-bold tracking-tighter uppercase",
+      "h2": "text-2xl sm:text-3xl font-medium tracking-tight",
+      "h3": "text-xl font-medium",
+      "h4": "text-sm uppercase tracking-[0.2em] font-bold text-green-500",
+      "body": "text-sm sm:text-base leading-relaxed text-gray-300",
+      "terminal_output": "text-xs sm:text-sm font-mono tracking-wide text-green-400"
+    }
+  },
+  "colors": {
+    "background": {
+      "base": "#050505",
+      "surface": "#111111",
+      "panel": "#1A1A1A"
+    },
+    "accents": {
+      "primary": "#00FF41",
+      "secondary": "#0EA5E9",
+      "warning": "#FFCC00",
+      "critical": "#FF3333"
+    },
+    "text": {
+      "primary": "#FFFFFF",
+      "secondary": "#A1A1AA",
+      "muted": "#52525B",
+      "active": "#00FF41"
+    }
+  },
+  "layout": {
+    "grid_strategy": "Control Room Protocol: grid-cols-1 lg:grid-cols-12 gap-4 or gap-6. Dense, data-heavy packing.",
+    "spacing_scale": "p-4 or p-6 for inner panel spacing. Avoid excessive whitespace; utilize screen real estate for logs, stats, and monitors.",
+    "surface_style": "Retro-Futurism / Terminal Look: No rounded corners (rounded-none). 1px crisp borders (border-green-500/20 or border-white/10). No soft shadows, replace with glowing drop-shadows on active states or 1px inner highlights.",
+    "decorations": "Use a subtle repeating-linear-gradient scanline overlay on terminal output areas or headers."
+  },
+  "components": {
+    "avatar_3d": "Use `react-three-fiber` and `@react-three/drei`. Render an abstract wireframe core, sphere, or icosahedron. Map the rotation speed, pulse, and color to the agent's state (e.g., green + fast rotation = 'busy'; cyan + slow = 'idle'; red + static = 'offline').",
+    "dispatch_console": "Prefix inputs with a hacker-style prompt (e.g., `user@nexus:~$ `). Use `JetBrains Mono`. On focus, add a glowing green ring and change text to high-saturation green.",
+    "forge_gallery": "Dense bento-box grid for AI outputs. On hover, apply a `-translate-y-1` transform and a glowing green border (`border-green-500 shadow-[0_0_15px_rgba(0,255,65,0.3)]`).",
+    "operations_log": "Scrolling monospace list. Color code text based on log severity (INFO: cyan, SUCCESS: green, ERROR: red). Bottom-up scrolling.",
+    "system_info_panel": "Use sharp, cardless widgets or minimal 1px borders. Data bars for RAM/GPU should be solid high-contrast neon lines."
+  },
+  "media": {
+    "image_urls": [
+      {
+        "url": "https://images.unsplash.com/photo-1762279388979-6a430989284c?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1ODB8MHwxfHNlYXJjaHwyfHxhYnN0cmFjdCUyMHRlY2glMjBkYXRhJTIwdmlzdWFsaXphdGlvbnxlbnwwfHx8fDE3Nzg0NzQwMjd8MA&ixlib=rb-4.1.0&q=85",
+        "description": "Abstract lines and graphs with glowing green and blue effects",
+        "category": "forge_gallery_item"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1762279388952-85187155e48d?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1ODB8MHwxfHNlYXJjaHwzfHxhYnN0cmFjdCUyMHRlY2glMjBkYXRhJTIwdmlzdWFsaXphdGlvbnxlbnwwfHx8fDE3Nzg0NzQwMjd8MA&ixlib=rb-4.1.0&q=85",
+        "description": "Abstract neon lines form a digital landscape",
+        "category": "forge_gallery_item"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1762279388957-c6ed514d3353?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1ODB8MHwxfHNlYXJjaHwxfHxhYnN0cmFjdCUyMHRlY2glMjBkYXRhJTIwdmlzdWFsaXphdGlvbnxlbnwwfHx8fDE3Nzg0NzQwMjd8MA&ixlib=rb-4.1.0&q=85",
+        "description": "Abstract glowing lines and charts on white background",
+        "category": "forge_gallery_item"
+      }
+    ]
+  },
+  "testing": {
+    "rules": "All interactive elements, forms, tabs, and critical status indicators MUST have a kebab-case, role-based `data-testid` attribute (e.g., `data-testid='dispatch-submit-button'`, `data-testid='gpu-status-indicator'`)."
+  },
+  "instructions_to_main_agent": [
+    "Import Google Fonts 'JetBrains Mono' and 'IBM Plex Sans' into index.css or index.html.",
+    "Install `@react-three/fiber`, `three`, and `@react-three/drei` for the 3D animated agent avatar.",
+    "Do NOT use rounded corners (`rounded-md`, `rounded-lg`). Force `rounded-none` on all Shadcn UI components to maintain the rigid terminal aesthetic.",
+    "Strictly follow the color scheme. Do not use generic 'blue' or 'indigo' from Tailwind. Stick to Terminal Green (#00FF41), Cyan, and Void Black (#050505).",
+    "Ensure hover states explicitly define text color to maintain APCA accessibility standards over dark backgrounds.",
+    "All grids must use `h-full` on children elements to ensure data panels align perfectly at the bottom without jagged edges."
+  ]
+}
