@@ -1,34 +1,154 @@
-.App-logo {
-    height: 40vmin;
-    pointer-events: none;
+/* Animations */
+@keyframes pulse-green {
+  0%, 100% { box-shadow: 0 0 8px rgba(0,255,65,0.3); }
+  50% { box-shadow: 0 0 20px rgba(0,255,65,0.6); }
 }
 
-@media (prefers-reduced-motion: no-preference) {
-    .App-logo {
-        animation: App-logo-spin infinite 20s linear;
-    }
+@keyframes glyph-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
-.App-header {
-    background-color: #0f0f10;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    font-size: calc(10px + 2vmin);
-    color: white;
+@keyframes avatar-breathe {
+  0%, 100% { transform: scale(1); opacity: 0.8; }
+  50% { transform: scale(1.05); opacity: 1; }
 }
 
-.App-link {
-    color: #61dafb;
+@keyframes avatar-busy {
+  0% { transform: rotate(0deg) scale(1); }
+  25% { transform: rotate(90deg) scale(1.1); }
+  50% { transform: rotate(180deg) scale(1); }
+  75% { transform: rotate(270deg) scale(1.1); }
+  100% { transform: rotate(360deg) scale(1); }
 }
 
-@keyframes App-logo-spin {
-    from {
-        transform: rotate(0deg);
-    }
-    to {
-        transform: rotate(360deg);
-    }
+@keyframes terminal-blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-12px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes glowPulse {
+  0%, 100% { filter: drop-shadow(0 0 4px rgba(0,255,65,0.3)); }
+  50% { filter: drop-shadow(0 0 12px rgba(0,255,65,0.7)); }
+}
+
+@keyframes dataStream {
+  0% { background-position: 0% 0%; }
+  100% { background-position: 0% 100%; }
+}
+
+.animate-pulse-green { animation: pulse-green 2s ease-in-out infinite; }
+.animate-glyph-spin { animation: glyph-spin 3s linear infinite; }
+.animate-breathe { animation: avatar-breathe 3s ease-in-out infinite; }
+.animate-busy { animation: avatar-busy 2s linear infinite; }
+.animate-blink { animation: terminal-blink 1s step-end infinite; }
+.animate-fadeIn { animation: fadeIn 0.3s ease-out forwards; }
+.animate-slideInLeft { animation: slideInLeft 0.3s ease-out forwards; }
+.animate-glowPulse { animation: glowPulse 2s ease-in-out infinite; }
+
+/* Glow effects */
+.glow-green { box-shadow: 0 0 15px rgba(0,255,65,0.3), inset 0 0 15px rgba(0,255,65,0.05); }
+.glow-cyan { box-shadow: 0 0 15px rgba(14,165,233,0.3), inset 0 0 15px rgba(14,165,233,0.05); }
+.glow-red { box-shadow: 0 0 15px rgba(255,51,51,0.3); }
+
+.text-glow-green { text-shadow: 0 0 8px rgba(0,255,65,0.5); }
+.text-glow-cyan { text-shadow: 0 0 8px rgba(14,165,233,0.5); }
+
+/* Panel styling */
+.nexus-panel {
+  background: var(--nexus-surface);
+  border: 1px solid var(--nexus-border);
+  transition: border-color 0.2s ease;
+}
+.nexus-panel:hover {
+  border-color: rgba(0, 255, 65, 0.3);
+}
+
+.nexus-panel-active {
+  border-color: rgba(0, 255, 65, 0.5);
+  box-shadow: 0 0 20px rgba(0, 255, 65, 0.1);
+}
+
+/* Terminal input */
+.terminal-input {
+  background: var(--nexus-bg);
+  border: 1px solid var(--nexus-border);
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--nexus-green);
+  caret-color: var(--nexus-green);
+}
+.terminal-input:focus {
+  outline: none;
+  border-color: var(--nexus-green);
+  box-shadow: 0 0 12px rgba(0, 255, 65, 0.2);
+}
+.terminal-input::placeholder {
+  color: var(--nexus-text-muted);
+}
+
+/* Status indicators */
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.status-idle { background: var(--nexus-green); animation: pulse-green 2s ease-in-out infinite; }
+.status-busy { background: var(--nexus-yellow); animation: pulse-green 0.5s ease-in-out infinite; }
+.status-error { background: var(--nexus-red); }
+.status-offline { background: var(--nexus-text-muted); }
+
+/* GPU/RAM bars */
+.stat-bar {
+  height: 6px;
+  background: var(--nexus-bg);
+  overflow: hidden;
+}
+.stat-bar-fill {
+  height: 100%;
+  transition: width 0.5s ease;
+}
+
+/* Nav tab styles */
+.nav-tab {
+  position: relative;
+  padding: 10px 16px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--nexus-text-muted);
+  border: 1px solid transparent;
+  transition: color 0.2s, border-color 0.2s, background 0.2s;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.nav-tab:hover {
+  color: var(--nexus-text-secondary);
+  background: rgba(0, 255, 65, 0.03);
+}
+.nav-tab.active {
+  color: var(--nexus-green);
+  border-color: var(--nexus-border);
+  border-bottom-color: var(--nexus-green);
+  background: var(--nexus-surface);
+}
+
+/* Forge gallery hover */
+.forge-item {
+  transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+.forge-item:hover {
+  transform: translateY(-2px);
+  border-color: var(--nexus-green);
+  box-shadow: 0 0 15px rgba(0,255,65,0.3);
 }
