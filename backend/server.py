@@ -11,6 +11,8 @@ import uuid
 from datetime import datetime, timezone
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 
+import re
+
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
@@ -22,6 +24,9 @@ app = FastAPI()
 api_router = APIRouter(prefix="/api")
 
 EMERGENT_KEY = os.environ.get('EMERGENT_LLM_KEY', '')
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 # ----- Pydantic Models -----
 
@@ -252,7 +257,8 @@ async def delete_note(note_id: str):
 
 @api_router.get("/mempalace/search")
 async def search_mempalace(q: str):
-    regex = {"$regex": q, "$options": "i"}
+    escaped = re.escape(q)
+    regex = {"$regex": escaped, "$options": "i"}
     notes = await db.notes.find({"$or": [{"content": regex}, {"tags": regex}]}, {"_id": 0}).to_list(100)
     dispatches = await db.dispatches.find({"$or": [{"prompt": regex}, {"response": regex}]}, {"_id": 0}).to_list(100)
     return {"notes": notes, "transmissions": dispatches}
@@ -386,9 +392,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
 
 @app.on_event("shutdown")
 async def shutdown_db_client():

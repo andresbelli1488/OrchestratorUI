@@ -7,6 +7,7 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 export default function ModelSwitcher({ agents, onUpdate }) {
   const [models, setModels] = useState([]);
+  const [modelsLoading, setModelsLoading] = useState(true);
   const [selectedAgent, setSelectedAgent] = useState(null);
 
   useEffect(() => {
@@ -15,6 +16,7 @@ export default function ModelSwitcher({ agents, onUpdate }) {
         const res = await axios.get(`${API}/models`);
         setModels(res.data);
       } catch (e) { console.error(e); }
+      finally { setModelsLoading(false); }
     };
     fetchModels();
   }, []);
@@ -85,7 +87,14 @@ export default function ModelSwitcher({ agents, onUpdate }) {
               Available Models {selectedAgent && <span style={{ color: "var(--nexus-cyan)" }}>for {selectedAgent.name}</span>}
             </h5>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {models.map((m, i) => {
+              {modelsLoading ? (
+                Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="p-3 border border-white/5 animate-pulse" style={{ background: "var(--nexus-bg)" }}>
+                    <div className="h-4 w-32 bg-white/5 mb-2" />
+                    <div className="h-3 w-20 bg-white/5" />
+                  </div>
+                ))
+              ) : models.map((m, i) => {
                 const isActive = selectedAgent?.preferred_model === m.model && selectedAgent?.preferred_provider === m.provider;
                 return (
                   <button
