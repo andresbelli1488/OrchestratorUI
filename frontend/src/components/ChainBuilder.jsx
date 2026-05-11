@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import axios from "axios";
 import { toast } from "sonner";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Link2, Plus, Play, Trash2, ArrowRight, ArrowDown, Loader2, ChevronDown, ChevronUp, GripVertical } from "lucide-react";
+import { Link2, Plus, Play, Trash2, ArrowRight, ArrowDown, Loader2, ChevronDown, ChevronUp, GripVertical, BookTemplate, Copy } from "lucide-react";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -18,6 +18,8 @@ export default function ChainBuilder({ agents, onDispatchComplete }) {
   const [expandedChain, setExpandedChain] = useState(null);
   const [dragIdx, setDragIdx] = useState(null);
   const [dragOverIdx, setDragOverIdx] = useState(null);
+  const [templates, setTemplates] = useState([]);
+  const [showTemplates, setShowTemplates] = useState(false);
 
   useEffect(() => {
     if (agents.length > 0 && steps.length === 0) {
@@ -28,7 +30,10 @@ export default function ChainBuilder({ agents, onDispatchComplete }) {
   const fetchChains = async () => {
     try { const res = await axios.get(`${API}/chains`); setChains(res.data); } catch (e) { console.error(e); }
   };
-  useEffect(() => { fetchChains(); }, []);
+  const fetchTemplates = async () => {
+    try { const res = await axios.get(`${API}/chain-templates`); setTemplates(res.data); } catch (e) { console.error(e); }
+  };
+  useEffect(() => { fetchChains(); fetchTemplates(); }, []);
 
   const addStep = () => setSteps([...steps, { agent_id: agents.length > 0 ? agents[0].id : "", prompt_template: "" }]);
   const removeStep = (i) => { if (steps.length > 1) setSteps(steps.filter((_, idx) => idx !== i)); };
@@ -73,6 +78,15 @@ export default function ChainBuilder({ agents, onDispatchComplete }) {
     try { await axios.delete(`${API}/chains/${id}`); toast.success("Chain deleted"); fetchChains(); } catch (e) { toast.error("Failed to delete chain"); }
   };
 
+  const cloneTemplate = async (templateId) => {
+    try {
+      await axios.post(`${API}/chain-templates/${templateId}/use`);
+      toast.success("Template cloned as chain");
+      fetchChains();
+      fetchTemplates();
+    } catch (e) { toast.error("Failed to use template"); }
+  };
+
   const getAgentName = (id) => agents.find((a) => a.id === id)?.name || "Unknown";
   const getAgentColor = (id) => {
     const idx = agents.findIndex((a) => a.id === id);
@@ -86,10 +100,52 @@ export default function ChainBuilder({ agents, onDispatchComplete }) {
         <h4 className="font-mono text-[10px] uppercase tracking-[0.2em] font-bold flex items-center gap-2" style={{ color: "var(--nexus-green)" }}>
           <Link2 size={14} /> Dispatch Chains
         </h4>
-        <button onClick={() => setShowCreate(!showCreate)} className="flex items-center gap-1.5 px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider border transition-all hover:bg-[#00FF41]/5" style={{ borderColor: "var(--nexus-border)", color: "var(--nexus-green)" }} data-testid="create-chain-button">
-          <Plus size={12} /> New Chain
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => { setShowTemplates(!showTemplates); setShowCreate(false); }} className="flex items-center gap-1.5 px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider border transition-all hover:bg-[#0EA5E9]/5" style={{ borderColor: showTemplates ? "rgba(14,165,233,0.5)" : "var(--nexus-border)", color: "var(--nexus-cyan)" }} data-testid="templates-gallery-button">
+            <BookTemplate size={12} /> Templates
+          </button>
+          <button onClick={() => { setShowCreate(!showCreate); setShowTemplates(false); }} className="flex items-center gap-1.5 px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider border transition-all hover:bg-[#00FF41]/5" style={{ borderColor: "var(--nexus-border)", color: "var(--nexus-green)" }} data-testid="create-chain-button">
+            <Plus size={12} /> New Chain
+          </button>
+        </div>
       </div>
+
+      {/* Template Gallery */}
+      {showTemplates && (
+        <div className="nexus-panel p-4 mb-4 animate-fadeIn" data-testid="chain-templates-gallery">
+          <h5 className="font-mono text-[10px] uppercase tracking-[0.2em] font-bold mb-3 flex items-center gap-2" style={{ color: "var(--nexus-cyan)" }}>
+            <BookTemplate size={12} /> Chain Templates
+          </h5>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {templates.map((tmpl) => (
+              <div key={tmpl.id} className="border p-3 transition-all hover:border-[#0EA5E9]/30" style={{ borderColor: "var(--nexus-border)", background: "var(--nexus-bg)" }} data-testid={`template-card-${tmpl.id}`}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-mono text-xs font-bold" style={{ color: "var(--nexus-text)" }}>{tmpl.name}</span>
+                  <span className="font-mono text-[8px] uppercase px-1.5 py-0.5 border" style={{ borderColor: "rgba(14,165,233,0.2)", color: "var(--nexus-cyan)" }}>{tmpl.category}</span>
+                </div>
+                <p className="font-mono text-[10px] mb-2" style={{ color: "var(--nexus-text-secondary)" }}>{tmpl.description}</p>
+                <div className="flex items-center gap-1 mb-2 flex-wrap">
+                  {tmpl.steps?.map((step, i) => (
+                    <div key={i} className="flex items-center gap-0.5">
+                      <span className="font-mono text-[8px] px-1 py-0.5" style={{ color: getAgentColor(step.agent_id), background: `${getAgentColor(step.agent_id)}10` }}>{getAgentName(step.agent_id)}</span>
+                      {i < tmpl.steps.length - 1 && <ArrowRight size={8} style={{ color: "var(--nexus-text-muted)" }} />}
+                    </div>
+                  ))}
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-[8px]" style={{ color: "var(--nexus-text-muted)" }}>{tmpl.usage_count || 0} uses</span>
+                  <button onClick={() => cloneTemplate(tmpl.id)} className="flex items-center gap-1 px-2 py-1 font-mono text-[9px] uppercase transition-all hover:bg-[#0EA5E9]/10" style={{ color: "var(--nexus-cyan)", border: "1px solid rgba(14,165,233,0.3)" }} data-testid={`use-template-${tmpl.id}`}>
+                    <Copy size={9} /> Use
+                  </button>
+                </div>
+              </div>
+            ))}
+            {templates.length === 0 && (
+              <span className="font-mono text-[10px] col-span-full text-center py-4" style={{ color: "var(--nexus-text-muted)" }}>No templates available</span>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Visual Chain Builder */}
       {showCreate && (
