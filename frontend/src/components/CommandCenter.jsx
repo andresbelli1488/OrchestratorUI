@@ -8,7 +8,7 @@ import { Send, Zap, Terminal } from "lucide-react";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
-export default function CommandCenter({ agents, systemInfo, dispatches, onDispatchComplete }) {
+export default function CommandCenter({ agents, systemInfo, dispatches, onDispatchComplete, offlineMode, onQueueAdd }) {
   const [selectedAgent, setSelectedAgent] = useState(null);
 
   const agentForDispatch = selectedAgent || (agents.length > 0 ? agents[0] : null);
@@ -81,7 +81,7 @@ export default function CommandCenter({ agents, systemInfo, dispatches, onDispat
 
       {/* Center Column: Dispatch Console + Transmissions */}
       <div className="lg:col-span-6 flex flex-col gap-4">
-        <DispatchConsole agent={agentForDispatch} onComplete={onDispatchComplete} />
+        <DispatchConsole agent={agentForDispatch} onComplete={onDispatchComplete} offlineMode={offlineMode} onQueueAdd={onQueueAdd} />
 
         {/* Recent Transmissions */}
         <div className="nexus-panel flex-1 flex flex-col min-h-0" data-testid="transmissions-panel">

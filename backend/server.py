@@ -16,8 +16,9 @@ from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional
 import uuid
 from datetime import datetime, timezone
-from emergentintegrations.llm.chat import LlmChat, UserMessage
+from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
 from emergentintegrations.llm.openai import OpenAISpeechToText
+from emergentintegrations.llm.openai.image_generation import OpenAIImageGeneration
 from elevenlabs import ElevenLabs as ElevenLabsClient
 from elevenlabs import VoiceSettings
 
@@ -41,6 +42,9 @@ eleven_client = ElevenLabsClient(api_key=ELEVENLABS_KEY) if ELEVENLABS_KEY else 
 
 # Whisper STT client
 stt_client = OpenAISpeechToText(api_key=EMERGENT_KEY) if EMERGENT_KEY else None
+
+# Image generation clients
+openai_image_gen = OpenAIImageGeneration(api_key=EMERGENT_KEY) if EMERGENT_KEY else None
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -109,6 +113,18 @@ class PluginExecute(BaseModel):
 class TTSRequest(BaseModel):
     text: str
     voice_id: str = "JBFqnCBsd6RMkjVDRZzb"
+
+class ImageGenRequest(BaseModel):
+    prompt: str
+    provider: str = "openai"  # "openai" or "gemini"
+    title: str = ""
+    tags: List[str] = []
+
+class OfflineQueueItem(BaseModel):
+    agent_id: str
+    prompt: str
+    model_override: Optional[str] = None
+    provider_override: Optional[str] = None
 
 # ----- Utility -----
 
@@ -383,6 +399,116 @@ async def get_voices():
         logger.warning(f"Get voices fallback to defaults: {e}")
         return default_voices
 
+# ----- Image Generation -----
+
+@api_router.post("/forge/generate")
+async def generate_image(req: ImageGenRequest):
+    """Generate an image using OpenAI GPT Image 1 or Gemini Nano Banana"""
+    try:
+        image_b64 = None
+        gen_text = ""
+
+        if req.provider == "gemini":
+            chat = LlmChat(api_key=EMERGENT_KEY, session_id=f"imggen-{uuid.uuid4()}", system_message="You are an image generation assistant.")
+            chat.with_model("gemini", "gemini-3.1-flash-image-preview").with_params(modalities=["image", "text"])
+            msg = UserMessage(text=req.prompt)
+            text, images = await chat.send_message_multimodal_response(msg)
+            gen_text = text or ""
+            if images and len(images) > 0:
+                image_b64 = images[0]['data']
+        else:
+            # OpenAI GPT Image 1
+            if not openai_image_gen:
+                raise HTTPException(status_code=500, detail="Image generation not configured")
+            images = await openai_image_gen.generate_images(prompt=req.prompt, model="gpt-image-1", number_of_images=1)
+            if images and len(images) > 0:
+                image_b64 = base64.b64encode(images[0]).decode('utf-8')
+
+        if not image_b64:
+            raise HTTPException(status_code=500, detail="No image generated")
+
+        # Auto-add to Forge
+        title = req.title or f"Generated: {req.prompt[:50]}"
+        data_url = f"data:image/png;base64,{image_b64}"
+        forge_doc = {
+            "id": str(uuid.uuid4()),
+            "title": title,
+            "type": "image",
+            "url": data_url,
+            "tags": req.tags + ["ai-generated", req.provider],
+            "source_agent": f"ImageGen ({req.provider})",
+            "description": req.prompt,
+            "created_at": now_iso()
+        }
+        await db.forge.insert_one(forge_doc)
+        forge_doc.pop("_id", None)
+        await log_operation("IMAGE_GENERATED", f"ImageGen ({req.provider})", f"Prompt: {req.prompt[:60]}...", "SUCCESS")
+
+        return {"image": data_url, "text": gen_text, "forge_item": forge_doc}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Image generation error: {e}")
+        raise HTTPException(status_code=500, detail=f"Image generation failed: {str(e)}")
+
+# ----- Offline Queue -----
+
+@api_router.post("/queue")
+async def add_to_queue(item: OfflineQueueItem):
+    """Add a dispatch to the offline queue"""
+    agent = await db.agents.find_one({"id": item.agent_id}, {"_id": 0})
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    doc = {
+        "id": str(uuid.uuid4()),
+        "agent_id": item.agent_id,
+        "agent_name": agent["name"],
+        "prompt": item.prompt,
+        "model_override": item.model_override,
+        "provider_override": item.provider_override,
+        "status": "queued",
+        "created_at": now_iso()
+    }
+    await db.offline_queue.insert_one(doc)
+    await log_operation("QUEUE_ADD", agent["name"], f"Queued: {item.prompt[:50]}...", "SUCCESS")
+    doc.pop("_id", None)
+    return doc
+
+@api_router.get("/queue")
+async def get_queue():
+    """Get all queued dispatches"""
+    items = await db.offline_queue.find({}, {"_id": 0}).sort("created_at", 1).to_list(200)
+    return items
+
+@api_router.delete("/queue/{queue_id}")
+async def remove_from_queue(queue_id: str):
+    result = await db.offline_queue.delete_one({"id": queue_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Queue item not found")
+    return {"status": "deleted"}
+
+@api_router.post("/queue/flush")
+async def flush_queue():
+    """Execute all queued dispatches"""
+    items = await db.offline_queue.find({}, {"_id": 0}).sort("created_at", 1).to_list(200)
+    results = []
+    for item in items:
+        try:
+            dispatch = DispatchCreate(
+                agent_id=item["agent_id"],
+                prompt=item["prompt"],
+                model_override=item.get("model_override"),
+                provider_override=item.get("provider_override")
+            )
+            result = await create_dispatch(dispatch)
+            await db.offline_queue.delete_one({"id": item["id"]})
+            results.append({"queue_id": item["id"], "dispatch_id": result["id"], "status": result["status"]})
+        except Exception as e:
+            results.append({"queue_id": item["id"], "status": "failed", "error": str(e)})
+    await log_operation("QUEUE_FLUSH", "Nexus", f"Flushed {len(results)} queued dispatches", "SUCCESS")
+    return {"flushed": len(results), "results": results}
+
 # ----- Dispatch Chains -----
 
 @api_router.post("/chains")
@@ -641,7 +767,6 @@ async def get_system_info():
     return {
         "gpu_devices": [
             {"name": "RTX 4070 Super #1", "load": random.randint(15, 85), "memory_used": random.randint(2, 8), "memory_total": 12},
-            {"name": "RTX 4070 Super #2", "load": random.randint(0, 45), "memory_used": random.randint(0, 6), "memory_total": 12},
             {"name": "RTX 3050", "load": random.randint(0, 15), "memory_used": random.randint(0, 2), "memory_total": 8}
         ],
         "ram": {"used": round(random.uniform(5.0, 12.0), 1), "total": 32},

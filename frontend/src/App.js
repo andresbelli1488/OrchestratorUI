@@ -11,7 +11,7 @@ import OperationsLog from "@/components/OperationsLog";
 import ModelSwitcher from "@/components/ModelSwitcher";
 import ChainBuilder from "@/components/ChainBuilder";
 import PluginManager from "@/components/PluginManager";
-import { Terminal, Brain, Layers, Server, ScrollText, Cpu, Activity, Link2, Puzzle } from "lucide-react";
+import { Terminal, Brain, Layers, Server, ScrollText, Cpu, Activity, Link2, Puzzle, WifiOff, Wifi, ListTodo } from "lucide-react";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -31,6 +31,8 @@ function App() {
   const [agents, setAgents] = useState([]);
   const [systemInfo, setSystemInfo] = useState(null);
   const [dispatches, setDispatches] = useState([]);
+  const [offlineMode, setOfflineMode] = useState(false);
+  const [queueCount, setQueueCount] = useState(0);
 
   const fetchAgents = useCallback(async () => {
     try {
@@ -53,24 +55,43 @@ function App() {
     } catch (e) { console.error("Failed to fetch dispatches", e); }
   }, []);
 
+  const fetchQueue = useCallback(async () => {
+    try {
+      const res = await axios.get(`${API}/queue`);
+      setQueueCount(res.data.length);
+    } catch (e) { console.error(e); }
+  }, []);
+
   useEffect(() => {
     fetchAgents();
     fetchSystem();
     fetchDispatches();
-    const interval = setInterval(() => { fetchSystem(); fetchAgents(); }, 8000);
+    fetchQueue();
+    const interval = setInterval(() => { fetchSystem(); fetchAgents(); fetchQueue(); }, 8000);
     return () => clearInterval(interval);
-  }, [fetchAgents, fetchSystem, fetchDispatches]);
+  }, [fetchAgents, fetchSystem, fetchDispatches, fetchQueue]);
 
   const onDispatchComplete = () => {
     fetchDispatches();
     fetchAgents();
     fetchSystem();
+    fetchQueue();
+  };
+
+  const handleFlushQueue = async () => {
+    try {
+      const res = await axios.post(`${API}/queue/flush`);
+      const { toast } = await import("sonner");
+      toast.success(`Flushed ${res.data.flushed} queued dispatches`);
+      setOfflineMode(false);
+      onDispatchComplete();
+    } catch (e) { console.error(e); }
   };
 
   const renderContent = () => {
     switch (activeTab) {
       case "command":
-        return <CommandCenter agents={agents} systemInfo={systemInfo} dispatches={dispatches} onDispatchComplete={onDispatchComplete} />;
+        return <CommandCenter agents={agents} systemInfo={systemInfo} dispatches={dispatches} onDispatchComplete={onDispatchComplete} offlineMode={offlineMode} onQueueAdd={fetchQueue} />;
       case "mempalace":
         return <MemPalace />;
       case "forge":
@@ -86,7 +107,7 @@ function App() {
       case "models":
         return <ModelSwitcher agents={agents} onUpdate={fetchAgents} />;
       default:
-        return <CommandCenter agents={agents} systemInfo={systemInfo} dispatches={dispatches} onDispatchComplete={onDispatchComplete} />;
+        return <CommandCenter agents={agents} systemInfo={systemInfo} dispatches={dispatches} onDispatchComplete={onDispatchComplete} offlineMode={offlineMode} onQueueAdd={fetchQueue} />;
     }
   };
 
@@ -102,10 +123,27 @@ function App() {
             </h1>
           </div>
           <div className="flex items-center gap-4">
+            {/* Offline Mode Toggle */}
+            <button
+              onClick={() => {
+                if (offlineMode && queueCount > 0) { handleFlushQueue(); }
+                else { setOfflineMode(!offlineMode); }
+              }}
+              className="flex items-center gap-1.5 px-2 py-1 font-mono text-[10px] uppercase tracking-wider border transition-all"
+              style={{
+                borderColor: offlineMode ? "rgba(255,204,0,0.3)" : "var(--nexus-border)",
+                color: offlineMode ? "var(--nexus-yellow)" : "var(--nexus-text-muted)",
+                background: offlineMode ? "rgba(255,204,0,0.05)" : "transparent"
+              }}
+              data-testid="offline-mode-toggle"
+            >
+              {offlineMode ? <WifiOff size={10} /> : <Wifi size={10} />}
+              {offlineMode ? (queueCount > 0 ? `Flush Queue (${queueCount})` : "Offline") : "Online"}
+            </button>
             <div className="flex items-center gap-2">
-              <Activity size={12} style={{ color: "var(--nexus-green)" }} />
+              <Activity size={12} style={{ color: offlineMode ? "var(--nexus-yellow)" : "var(--nexus-green)" }} />
               <span className="font-mono text-[10px] uppercase tracking-wider" style={{ color: "var(--nexus-text-secondary)" }}>
-                {systemInfo?.network || "online"}
+                {offlineMode ? "offline" : (systemInfo?.network || "online")}
               </span>
             </div>
             <div className="flex items-center gap-2">

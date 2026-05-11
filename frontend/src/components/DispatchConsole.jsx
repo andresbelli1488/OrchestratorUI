@@ -1,17 +1,20 @@
 import { useState, useRef, useEffect } from "react";
 import axios from "axios";
 import { toast } from "sonner";
-import { Send, Loader2, Mic, MicOff, Volume2, VolumeX } from "lucide-react";
+import { Send, Loader2, Mic, MicOff, Volume2, VolumeX, ChevronDown } from "lucide-react";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
-export default function DispatchConsole({ agent, onComplete }) {
+export default function DispatchConsole({ agent, onComplete, offlineMode, onQueueAdd }) {
   const [prompt, setPrompt] = useState("");
   const [loading, setLoading] = useState(false);
   const [streamingText, setStreamingText] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [voices, setVoices] = useState([]);
+  const [selectedVoice, setSelectedVoice] = useState("JBFqnCBsd6RMkjVDRZzb");
+  const [showVoiceSelector, setShowVoiceSelector] = useState(false);
   const inputRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
@@ -21,9 +24,32 @@ export default function DispatchConsole({ agent, onComplete }) {
     if (inputRef.current && !isRecording) inputRef.current.focus();
   }, [agent, isRecording]);
 
+  useEffect(() => {
+    const fetchVoices = async () => {
+      try {
+        const res = await axios.get(`${API}/voice/voices`);
+        setVoices(res.data);
+      } catch (e) { console.error(e); }
+    };
+    fetchVoices();
+  }, []);
+
   const handleStreamDispatch = async (e) => {
     e.preventDefault();
     if (!prompt.trim() || !agent) return;
+
+    // Offline mode: queue instead of dispatch
+    if (offlineMode) {
+      try {
+        await axios.post(`${API}/queue`, { agent_id: agent.id, prompt: prompt.trim() });
+        toast.success(`Queued dispatch to ${agent.name}`);
+        setPrompt("");
+        onQueueAdd?.();
+      } catch (err) {
+        toast.error("Queue failed: " + (err.response?.data?.detail || err.message));
+      }
+      return;
+    }
 
     setLoading(true);
     setIsStreaming(true);
@@ -45,11 +71,9 @@ export default function DispatchConsole({ agent, onComplete }) {
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split("\n");
         buffer = lines.pop() || "";
-
         for (const line of lines) {
           if (line.startsWith("data: ")) {
             try {
@@ -63,13 +87,10 @@ export default function DispatchConsole({ agent, onComplete }) {
               } else if (data.type === "error") {
                 toast.error(`Dispatch error: ${data.message}`);
               }
-            } catch (parseErr) {
-              // skip malformed SSE
-            }
+            } catch (_) {}
           }
         }
       }
-
       setPrompt("");
       onComplete?.();
     } catch (err) {
@@ -80,36 +101,26 @@ export default function DispatchConsole({ agent, onComplete }) {
     }
   };
 
-  // Voice recording
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
       audioChunksRef.current = [];
       mediaRecorderRef.current = mediaRecorder;
-
-      mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) audioChunksRef.current.push(e.data);
-      };
-
+      mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
       mediaRecorder.onstop = async () => {
         stream.getTracks().forEach((t) => t.stop());
         const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
         await transcribeAudio(audioBlob);
       };
-
       mediaRecorder.start();
       setIsRecording(true);
       toast.info("Recording... click mic again to stop");
-    } catch (err) {
-      toast.error("Microphone access denied");
-    }
+    } catch (err) { toast.error("Microphone access denied"); }
   };
 
   const stopRecording = () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
-      mediaRecorderRef.current.stop();
-    }
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") mediaRecorderRef.current.stop();
     setIsRecording(false);
   };
 
@@ -119,35 +130,27 @@ export default function DispatchConsole({ agent, onComplete }) {
       const formData = new FormData();
       formData.append("audio_file", blob, "recording.webm");
       const res = await axios.post(`${API}/voice/transcribe`, formData);
-      if (res.data.text) {
-        setPrompt(res.data.text);
-        toast.success("Voice transcribed");
-      }
-    } catch (err) {
-      toast.error("Transcription failed: " + (err.response?.data?.detail || err.message));
-    } finally {
-      setLoading(false);
-    }
+      if (res.data.text) { setPrompt(res.data.text); toast.success("Voice transcribed"); }
+    } catch (err) { toast.error("Transcription failed: " + (err.response?.data?.detail || err.message)); }
+    finally { setLoading(false); }
   };
 
-  // Text-to-speech for last response
   const speakResponse = async () => {
     const text = lastResponseRef.current || streamingText;
     if (!text) { toast.error("No response to speak"); return; }
     setIsSpeaking(true);
     try {
-      const res = await axios.post(`${API}/voice/speak`, { text: text.slice(0, 2000) });
+      const res = await axios.post(`${API}/voice/speak`, { text: text.slice(0, 2000), voice_id: selectedVoice });
       if (res.data.audio) {
         const audio = new Audio(res.data.audio);
         audio.onended = () => setIsSpeaking(false);
         audio.onerror = () => setIsSpeaking(false);
         audio.play();
       }
-    } catch (err) {
-      toast.error("TTS failed: " + (err.response?.data?.detail || err.message));
-      setIsSpeaking(false);
-    }
+    } catch (err) { toast.error("TTS failed"); setIsSpeaking(false); }
   };
+
+  const currentVoiceName = voices.find((v) => v.voice_id === selectedVoice)?.name || "George";
 
   return (
     <div className="nexus-panel nexus-panel-active" data-testid="dispatch-console">
@@ -157,21 +160,24 @@ export default function DispatchConsole({ agent, onComplete }) {
             Dispatch Console
           </h4>
           <div className="flex items-center gap-2">
+            {offlineMode && (
+              <span className="font-mono text-[9px] px-1.5 py-0.5 border animate-pulse" style={{ borderColor: "rgba(255,204,0,0.3)", color: "var(--nexus-yellow)" }}>
+                OFFLINE
+              </span>
+            )}
             {agent && (
               <span className="font-mono text-[10px] px-2 py-0.5 border" style={{ borderColor: "var(--nexus-border)", color: "var(--nexus-cyan)" }}>
                 TARGET: {agent.name}
               </span>
             )}
-            <span className="font-mono text-[9px] px-1.5 py-0.5 border" style={{ borderColor: "rgba(0,255,65,0.2)", color: "var(--nexus-green)" }}>
-              SSE
-            </span>
+            <span className="font-mono text-[9px] px-1.5 py-0.5 border" style={{ borderColor: "rgba(0,255,65,0.2)", color: "var(--nexus-green)" }}>SSE</span>
           </div>
         </div>
       </div>
 
       <form onSubmit={handleStreamDispatch} className="p-4">
         <div className="flex items-center gap-2" style={{ background: "var(--nexus-bg)" }}>
-          <span className="font-mono text-xs shrink-0 pl-3" style={{ color: "var(--nexus-green)" }}>
+          <span className="font-mono text-xs shrink-0 pl-3" style={{ color: offlineMode ? "var(--nexus-yellow)" : "var(--nexus-green)" }}>
             {agent ? `${agent.name.toLowerCase()}@nexus` : "user@nexus"}:~$
           </span>
           <input
@@ -180,41 +186,44 @@ export default function DispatchConsole({ agent, onComplete }) {
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             disabled={loading || !agent}
-            placeholder={agent ? `Dispatch task to ${agent.name}...` : "Select an agent first"}
+            placeholder={offlineMode ? "Offline mode: dispatches will be queued..." : agent ? `Dispatch task to ${agent.name}...` : "Select an agent first"}
             className="terminal-input flex-1 py-3 pr-3 text-sm border-0 bg-transparent"
             style={{ outline: "none", boxShadow: "none" }}
             data-testid="dispatch-input"
           />
-          {/* Voice button */}
-          <button
-            type="button"
-            onClick={isRecording ? stopRecording : startRecording}
-            disabled={loading && !isRecording}
-            className="p-3 transition-all"
-            style={{ color: isRecording ? "var(--nexus-red)" : "var(--nexus-text-muted)", background: isRecording ? "rgba(255,51,51,0.1)" : "transparent" }}
-            data-testid="voice-record-button"
-          >
+          <button type="button" onClick={isRecording ? stopRecording : startRecording} disabled={loading && !isRecording} className="p-3 transition-all" style={{ color: isRecording ? "var(--nexus-red)" : "var(--nexus-text-muted)", background: isRecording ? "rgba(255,51,51,0.1)" : "transparent" }} data-testid="voice-record-button">
             {isRecording ? <MicOff size={14} /> : <Mic size={14} />}
           </button>
-          {/* TTS button */}
-          <button
-            type="button"
-            onClick={speakResponse}
-            disabled={isSpeaking || (!lastResponseRef.current && !streamingText)}
-            className="p-3 transition-all disabled:opacity-30"
-            style={{ color: isSpeaking ? "var(--nexus-yellow)" : "var(--nexus-cyan)" }}
-            data-testid="voice-speak-button"
-          >
-            {isSpeaking ? <VolumeX size={14} className="animate-pulse" /> : <Volume2 size={14} />}
-          </button>
-          {/* Submit */}
-          <button
-            type="submit"
-            disabled={loading || !prompt.trim() || !agent}
-            className="p-3 font-mono text-xs uppercase tracking-wider transition-all disabled:opacity-30"
-            style={{ color: "var(--nexus-bg)", background: loading ? "var(--nexus-yellow)" : "var(--nexus-green)" }}
-            data-testid="dispatch-submit-button"
-          >
+          {/* Voice selector */}
+          <div className="relative">
+            <button type="button" onClick={() => setShowVoiceSelector(!showVoiceSelector)} disabled={isSpeaking || (!lastResponseRef.current && !streamingText)} className="p-3 flex items-center gap-1 transition-all disabled:opacity-30" style={{ color: isSpeaking ? "var(--nexus-yellow)" : "var(--nexus-cyan)" }} data-testid="voice-speak-button">
+              {isSpeaking ? <VolumeX size={14} className="animate-pulse" /> : <Volume2 size={14} />}
+              <ChevronDown size={8} />
+            </button>
+            {showVoiceSelector && (
+              <div className="absolute right-0 top-full mt-1 z-50 border w-48 max-h-52 overflow-y-auto" style={{ background: "var(--nexus-surface)", borderColor: "var(--nexus-border)" }} data-testid="voice-selector-dropdown">
+                <div className="p-2 border-b" style={{ borderColor: "var(--nexus-border)" }}>
+                  <span className="font-mono text-[9px] uppercase" style={{ color: "var(--nexus-text-muted)" }}>Select Voice</span>
+                </div>
+                {voices.map((v) => (
+                  <button
+                    key={v.voice_id}
+                    type="button"
+                    className={`w-full text-left px-3 py-1.5 font-mono text-[10px] transition-all hover:bg-white/5 ${selectedVoice === v.voice_id ? "text-[#00FF41]" : ""}`}
+                    style={{ color: selectedVoice === v.voice_id ? "var(--nexus-green)" : "var(--nexus-text-secondary)" }}
+                    onClick={() => { setSelectedVoice(v.voice_id); setShowVoiceSelector(false); speakResponse(); }}
+                    data-testid={`voice-option-${v.voice_id}`}
+                  >
+                    {v.name} {selectedVoice === v.voice_id && "  *"}
+                  </button>
+                ))}
+                <button type="button" className="w-full text-left px-3 py-1.5 font-mono text-[9px] border-t transition-all hover:bg-white/5" style={{ borderColor: "var(--nexus-border)", color: "var(--nexus-text-muted)" }} onClick={() => { setShowVoiceSelector(false); speakResponse(); }} data-testid="voice-speak-selected">
+                  Speak with {currentVoiceName}
+                </button>
+              </div>
+            )}
+          </div>
+          <button type="submit" disabled={loading || !prompt.trim() || !agent} className="p-3 font-mono text-xs uppercase tracking-wider transition-all disabled:opacity-30" style={{ color: "var(--nexus-bg)", background: offlineMode ? "var(--nexus-yellow)" : loading ? "var(--nexus-yellow)" : "var(--nexus-green)" }} data-testid="dispatch-submit-button">
             {loading ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
           </button>
         </div>
@@ -233,9 +242,7 @@ export default function DispatchConsole({ agent, onComplete }) {
             {!isStreaming && streamingText && (
               <div className="flex items-center gap-2 mb-2">
                 <div className="status-dot status-idle" />
-                <span className="font-mono text-[10px]" style={{ color: "var(--nexus-green)" }}>
-                  Transmission complete
-                </span>
+                <span className="font-mono text-[10px]" style={{ color: "var(--nexus-green)" }}>Transmission complete</span>
               </div>
             )}
             {streamingText && (
