@@ -9,7 +9,9 @@ import ForgeGallery from "@/components/ForgeGallery";
 import ServiceRegistry from "@/components/ServiceRegistry";
 import OperationsLog from "@/components/OperationsLog";
 import ModelSwitcher from "@/components/ModelSwitcher";
-import { Terminal, Brain, Layers, Server, ScrollText, Cpu, Activity } from "lucide-react";
+import ChainBuilder from "@/components/ChainBuilder";
+import PluginManager from "@/components/PluginManager";
+import { Terminal, Brain, Layers, Server, ScrollText, Cpu, Activity, Link2, Puzzle } from "lucide-react";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -17,6 +19,8 @@ const NAV_ITEMS = [
   { id: "command", label: "Command", icon: Terminal },
   { id: "mempalace", label: "MemPalace", icon: Brain },
   { id: "forge", label: "Forge", icon: Layers },
+  { id: "chains", label: "Chains", icon: Link2 },
+  { id: "plugins", label: "Plugins", icon: Puzzle },
   { id: "services", label: "Services", icon: Server },
   { id: "operations", label: "Ops Log", icon: ScrollText },
   { id: "models", label: "Models", icon: Cpu },
@@ -71,6 +75,10 @@ function App() {
         return <MemPalace />;
       case "forge":
         return <ForgeGallery />;
+      case "chains":
+        return <ChainBuilder agents={agents} onDispatchComplete={onDispatchComplete} />;
+      case "plugins":
+        return <PluginManager />;
       case "services":
         return <ServiceRegistry agents={agents} onUpdate={fetchAgents} />;
       case "operations":

@@ -1,0 +1,44 @@
+{
+  "summary": "Iteration 2 - Tested 4 new features (SSE streaming dispatch, voice TTS/STT/voices, dispatch chains, plugin system). All 15 backend pytest cases PASS (real GPT-5.2, real ElevenLabs TTS, real Whisper STT verified end-to-end). All frontend flows PASS via Playwright: streaming output renders live in DispatchConsole, mic/speaker/SSE badge visible, Plugins tab shows 5 built-ins and supports custom CRUD + server-side Python execution, Chains tab supports 2-step Hermes->OpenClaw create/execute/delete with visible per-step results.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Chains - Create Form", "issues": ["Step 0 agent dropdown defaults to 'Select Agent' even when agents are loaded - user can hit 'Create Chain' and get a generic 'Fill in all fields' toast. Suggest auto-selecting the first agent (Hermes) for step 0 to mirror DispatchConsole behavior, or surfacing a more specific validation error pointing to the missing agent."]},
+      {"screen": "DispatchConsole - Streaming", "issues": ["Streaming output panel disappears 500ms after completion (setTimeout in handleStreamDispatch). Final response is hard to read because it vanishes immediately - consider keeping the last streamed text visible or moving it into the dispatch history list with a 'streamed' badge."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_new_features.py",
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/iteration_2_new_features.xml"
+  ],
+  "action_items": [
+    "(Optional UX) Default chain step 0 agent to first available agent so 'Create Chain' works without manually selecting Hermes.",
+    "(Optional UX) Retain final streamed response in the console after completion instead of clearing it after 500ms."
+  ],
+  "critical_code_review_comments": [
+    "server.py is 759 lines - approaching the 700-line splitting threshold. Recommend splitting into routers (agents, dispatches, voice, chains, plugins, mempalace, forge, system).",
+    "server.py:507 - plugin script injection uses f-string with triple-quoted INPUT: `INPUT = \"\"\"{body.input_data}\"\"\"`. If input_data itself contains a triple-quote sequence (\"\"\"), the generated Python file will break with a SyntaxError. Use repr() or json.dumps to safely embed user input. Currently low-risk because plugins are explicitly server-side Python execution, but the failure mode is silent (just returns status='error').",
+    "server.py plugin execute - subprocess runs with the parent process's full os.environ, exposing EMERGENT_LLM_KEY and ELEVENLABS_API_KEY to arbitrary user-supplied Python. Acceptable for a single-user app with no auth, but flag for any future multi-user deployment.",
+    "server.py:354 - `for chunk in audio_generator:` iterates a sync generator inside an async endpoint, blocking the event loop for the entire ElevenLabs TTS duration. Consider wrapping in run_in_executor or using the async ElevenLabs client.",
+    "DispatchConsole.jsx:79 - setTimeout(500ms) to clear streamingText destroys final response before user can copy it. Keep last response visible until next dispatch.",
+    "ChainBuilder.jsx - initial step state has agent_id='' so the default 'Select Agent' option is selected; first agent should be auto-populated.",
+    "server.py voice endpoints depend on `stt_client` / `eleven_client` but their initialization is not shown in viewed range - ensure they fail gracefully if keys missing (returns 500 currently, which is fine).",
+    "Still applies from iter1: deprecated @app.on_event('startup'/'shutdown') - migrate to lifespan context manager."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_new_features.py (new)"
+  ],
+  "success_rate": {"backend": "100% (15/15 new + 12/12 existing)", "frontend": "100% of tested flows (streaming, chains CRUD+exec, plugins CRUD+exec)"},
+  "test_credentials": "N/A - no auth",
+  "seed_data_creation": "5 built-in plugins auto-seeded on startup (Word Counter, JSON Formatter, CSV to Table, Base64 Encode/Decode, Text Statistics). Tests create/delete TEST_ prefixed chains and plugins; agents Hermes/OpenClaw used in chain.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All 4 new features verified end-to-end. Backend: /app/backend/tests/test_new_features.py runs in ~11s with real LLM + ElevenLabs + Whisper calls. Frontend data-testids in place for streaming-output, plugin-card-{id}, plugin-execute-{id}, plugin-result-{id}, chain-card-{id}, chain-execute-{id}, chain-execution-result, voice-record-button, voice-speak-button. Frontend rendered the chain output with both steps completed ('WIDGET' -> 'Build Better Widgets'). Streaming verified to render token-by-token in ~1s. Whisper STT validated with TTS-generated audio loop. ElevenLabs TTS default voice 'JBFqnCBsd6RMkjVDRZzb' (George) returns ~MP3 base64. Plugin execution sandbox uses subprocess with 30s timeout and inherits env vars (noted as code review item).",
+  "rca of the issue": "First frontend playwright run for chains failed with 'Fill in all fields' toast because step 0's agent dropdown defaults to empty 'Select Agent' option. Selecting Hermes explicitly resolves the issue. First streaming test timed out on wait_for_selector at 15s; root cause was the test was waiting before the agent card was clicked - re-run with explicit agent selection and polling loop succeeded in 1s. Both are test issues, not product bugs (although the chain-step-0 default is a minor UX nit worth fixing)."
+}
